@@ -151,26 +151,26 @@ def visualize_long_ai_code(text, model, tokenizer, device):
     html_out += f"<p>Найдено {suspicious_count} подозрительных токенов из {total_tokens}. "
     html_out += f"Макс. уверенность: {confidence:.2%}, порог: {threshold:.2f}</p>"
 
+    html_out += "<pre style='background-color: #1e1e1e; color: #ccc; padding: 10px; white-space: pre-wrap; word-wrap: break-word;'>"
+
     last_idx = 0
     for (start, end), prob in zip(offsets, probs):
         if start == end:
             continue
 
-        html_out += text[last_idx:start]
+        html_out += html.escape(text[last_idx:start])
         
-        chunk = text[start:end]
+        chunk = html.escape(text[start:end])
 
-        if prob > 0.5:
-        # Чем ближе к 1.0, тем краснее. Ниже 0.5 — не подсвечиваем.
-            intensity = (prob - 0.5) * 2  # Растягиваем 0.5-1.0 в 0.0-1.0
-            color = f"rgba(255, 100, 0, {intensity * 0.6:.3f})" # Оранжево-красный
-            html_out += f'<span style="background-color: {color}; border-bottom: 1px solid rgba(255,0,0,{intensity})">{chunk}</span>'
+        if prob > threshold:
+            color = f"rgba(255, 50, 50, {prob:.3f})"
+            html_out += f'<span style="background-color: {color}; border-radius: 2px;">{chunk}</span>'
         else:
             html_out += chunk
             
         last_idx = end
 
-    html_out += text[last_idx:] + "</pre>"
+    html_out += html.escape(text[last_idx:]) + "</pre>"
     return html_out
 
 
