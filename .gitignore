@@ -73,5 +73,3 @@ venv/
 env/
 ui_form.py
 .env
-*.pth
-
