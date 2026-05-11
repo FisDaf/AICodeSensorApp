@@ -1,4 +1,3 @@
-# This Python file uses the following encoding: utf-8
 import sys
 import os
 from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog,
@@ -17,40 +16,36 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.setWindowTitle("AICodeSensor")
 
-        # 1. Настройка разделителя (Splitter)
+        # 1. Настройка разделителя
         self.splitter = QSplitter(Qt.Horizontal)
-
-        # Контейнер для левой части (список + кнопки)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
+        
         left_layout.addWidget(self.ui.file_list)
         left_layout.addWidget(self.ui.btn_load_files)
 
-        # Собираем сплиттер
         self.splitter.addWidget(left_widget)
         self.splitter.addWidget(self.ui.result_view)
         self.splitter.setSizes([250, 550])
 
-        # Установка главного Layout
         main_layout = QVBoxLayout(self.ui.centralwidget)
         main_layout.addWidget(self.splitter)
 
-        # 2. Стили (QSS)
+        # 2. Обновленные стили (добавили отступы для списка)
         self.setStyleSheet("""
             QMainWindow { background-color: #2b2b2b; }
             QSplitter::handle { background-color: #323232; width: 4px; }
-            QSplitter::handle:hover { background-color: #4e5052; }
-            QListWidget { background-color: #3c3f41; border: none; color: #afb1b3; }
+            QListWidget { background-color: #3c3f41; border: none; color: #afb1b3; outline: none; }
+            QListWidget::item { padding: 8px; border-bottom: 1px solid #323232; }
             QTextBrowser { background-color: #2b2b2b; border: none; color: #a9b7c6; }
-            QPushButton { background-color: #365880; color: white; border-radius: 3px; padding: 8px; }
+            QPushButton { background-color: #365880; color: white; border-radius: 3px; padding: 10px; font-weight: bold; }
+            QPushButton:hover { background-color: #4572a7; }
         """)
 
-        # 3. Инициализация моделей и сигналов (БЕЗ ДУБЛЕЙ)
         self.sensor_first = CodeSensorModel_first()
         self.sensor_second = CodeSensorModel_second()
         self.results_storage = {}
-        self.file_content_storage = {}
 
         self.ui.btn_load_files.clicked.connect(self.load_multiple_files)
         self.ui.file_list.itemClicked.connect(self.display_selected_file)
@@ -66,18 +61,22 @@ class MainWindow(QMainWindow):
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
 
-                self.file_content_storage[file_name] = content
-                
-                # Получаем вердикт и результат анализа
+                # verdict теперь возвращает 0, 1 или 2
                 verdict = self.sensor_first.get_verdict(content)
-                item = QListWidgetItem(file_name)
+                
+                item = QListWidgetItem()
+                # Сохраняем чистое имя файла в скрытые данные элемента, чтобы поиск в словаре не ломался
+                item.setData(Qt.UserRole, file_name) 
 
-                if verdict == 1:
-                    print(f'АНАЛИЗ: {file_name} подозрителен')
-                    item.setForeground(QColor("red"))
+                if verdict == 2:
+                    item.setText(f"⚠ {file_name}")
+                    item.setForeground(QColor("#ff5555"))
+                elif verdict == 1:
+                    item.setText(f"? {file_name}")
+                    item.setForeground(QColor("#ffb86c"))
                 else:
-                    print(f'АНАЛИЗ: {file_name} чист')
-                    item.setForeground(QColor("green"))
+                    item.setText(f"✓ {file_name}")
+                    item.setForeground(QColor("#50fa7b"))
                 
                 # Сохраняем результат анализа
                 self.results_storage[file_name] = self.sensor_second.process_code(content)
@@ -87,28 +86,9 @@ class MainWindow(QMainWindow):
                 print(f"Ошибка с файлом {file_name}: {e}")
 
     def display_selected_file(self, item):
-        file_name = item.text()
+        file_name = item.data(Qt.UserRole)
         html_to_show = self.results_storage.get(file_name, "Ошибка: данные не найдены")
         self.ui.result_view.setHtml(html_to_show)
-
-    def visualize_selected_file(self):
-        current_item = self.ui.file_list.currentItem()
-        if not current_item:
-            self.ui.result_view.setHtml("<h3 style='color: orange;'>Пожалуйста, выберите файл из списка</h3>")
-            return
-        
-        file_name = current_item.text()
-        content = self.file_content_storage.get(file_name)
-        
-        if not content:
-            self.ui.result_view.setHtml("<h3 style='color: red;'>Ошибка: содержимое файла не найдено</h3>")
-            return
-        
-        try:
-            html_visualization = visualize_long_ai_code(content, model, tokenizer, device)
-            self.ui.result_view.setHtml(html_visualization)
-        except Exception as e:
-            self.ui.result_view.setHtml(f"<h3 style='color: red;'>Ошибка визуализации: {e}</h3>")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

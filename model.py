@@ -30,9 +30,9 @@ class CodeSensorModel:
         chars_count = len(code_text)
         
         # Адаптивный порог в зависимости от размера
-        # Короткий код (< 10 строк или < 200 символов) - порог 0.85
+        # Короткий код (< 20 строк или < 200 символов) - порог 0.85
         # Большой код - порог 0.7
-        if lines_count < 10 and chars_count < 200:
+        if lines_count < 20 or chars_count < 200:
             threshold = 0.85
             size_label = "короткий"
         else:
@@ -55,18 +55,22 @@ class CodeSensorModel:
             probs = torch.softmax(outputs, dim=-1)
             unsafe_probs = probs[:, :, 1].cpu().numpy().flatten()
         
-        suspicious_tokens = int((unsafe_probs > threshold).sum())
         total_tokens = len(unsafe_probs)
-        status = "ПОДОЗРИТЕЛЬНЫЙ" if suspicious_tokens > 0 else "БЕЗОПАСНЫЙ"
-        verdict = 1 if suspicious_tokens > 0 else 0
+        suspicious_tokens = int((unsafe_probs > threshold).sum())
+        density = suspicious_tokens / total_tokens if total_tokens > 0 else 0
         
-        if verdict == 1:
+        if density > 0.15: # Более 15% токенов подозрительны
+            verdict = 2
+        elif density > 0.03: # От 3% до 15% — просто "шум" или мелкие подозрения
+            verdict = 1
+        else:
+            verdict = 0
+            
+        if verdict >= 1:
             html_result = visualize_long_ai_code(code_text, model, tokenizer, device)
         else:
-            html_result = (
-                f"<h2 style='color: green;'>Файл безопасен</h2>"
-            )
-        
+            html_result = "<h2 style='color: #50fa7b;'>Файл безопасен</h2>"
+            
         return verdict, html_result
 
 
@@ -118,7 +122,7 @@ def visualize_long_ai_code(text, model, tokenizer, device):
     # Определяем адаптивный порог по размеру текста
     lines_count = len(text.split('\n'))
     chars_count = len(text)
-    if lines_count < 10 and chars_count < 200:
+    if lines_count < 20 or chars_count < 200:
         threshold = 0.85
         size_label = "короткий"
     else:
@@ -127,7 +131,10 @@ def visualize_long_ai_code(text, model, tokenizer, device):
 
     suspicious_count = sum(1 for prob in probs if prob > threshold)
     total_tokens = len([1 for start, end in offsets if start != end])
-    status = "ПОДОЗРИТЕЛЬНЫЙ" if suspicious_count > 0 else "БЕЗОПАСНЫЙ"
+    suspicious_density = suspicious_count / total_tokens if total_tokens > 0 else 0
+    # Считаем подозрительным, только если более 10% токенов "плохие"
+    verdict = 1 if (suspicious_density > 0.10 and confidence > 0.90) else 0
+    status = "ПОДОЗРИТЕЛЬНЫЙ" if verdict == 1 else "БЕЗОПАСНЫЙ"
     status_color = "orange" if suspicious_count > 0 else "green"
     confidence = max(probs) if len(probs) else 0
 
@@ -143,14 +150,14 @@ def visualize_long_ai_code(text, model, tokenizer, device):
             continue
 
         html_out += text[last_idx:start]
+        
         chunk = text[start:end]
 
-        html_out += text[last_idx:start]
-        chunk = text[start:end]
-
-        if prob > threshold:
-            color = f"rgba(255, 50, 50, {prob:.3f})"
-            html_out += f'<span style="background-color: {color}">{chunk}</span>'
+        if prob > 0.5:
+        # Чем ближе к 1.0, тем краснее. Ниже 0.5 — не подсвечиваем.
+            intensity = (prob - 0.5) * 2  # Растягиваем 0.5-1.0 в 0.0-1.0
+            color = f"rgba(255, 100, 0, {intensity * 0.6:.3f})" # Оранжево-красный
+            html_out += f'<span style="background-color: {color}; border-bottom: 1px solid rgba(255,0,0,{intensity})">{chunk}</span>'
         else:
             html_out += chunk
             
