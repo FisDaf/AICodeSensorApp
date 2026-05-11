@@ -118,11 +118,13 @@ def predict_long_code(text, model, tokenizer, device, window_size=512, stride=25
 def visualize_long_ai_code(text, model, tokenizer, device):
     """Визуализирует код с цветовой подсветкой по вероятности уязвимости"""
     tokens, probs, offsets = predict_long_code(text, model, tokenizer, device)
+    
+    confidence = float(max(probs)) if len(probs) > 0 else 0.0
 
-    # Определяем адаптивный порог по размеру текста
     lines_count = len(text.split('\n'))
     chars_count = len(text)
-    if lines_count < 20 or chars_count < 200:
+    
+    if lines_count < 25 and chars_count < 1000:
         threshold = 0.85
         size_label = "короткий"
     else:
@@ -131,18 +133,23 @@ def visualize_long_ai_code(text, model, tokenizer, device):
 
     suspicious_count = sum(1 for prob in probs if prob > threshold)
     total_tokens = len([1 for start, end in offsets if start != end])
-    suspicious_density = suspicious_count / total_tokens if total_tokens > 0 else 0
-    # Считаем подозрительным, только если более 10% токенов "плохие"
-    verdict = 1 if (suspicious_density > 0.10 and confidence > 0.90) else 0
-    status = "ПОДОЗРИТЕЛЬНЫЙ" if verdict == 1 else "БЕЗОПАСНЫЙ"
-    status_color = "orange" if suspicious_count > 0 else "green"
-    confidence = max(probs) if len(probs) else 0
+    
+    density = suspicious_count / total_tokens if total_tokens > 0 else 0
+    
+    if density > 0.15 or (density > 0.05 and confidence > 0.95):
+        status = "ПОДОЗРИТЕЛЬНЫЙ"
+        status_color = "#ff5555"
+    elif density > 0.01:
+        status = "ВНИМАНИЕ"
+        status_color = "#ffb86c"
+    else:
+        status = "БЕЗОПАСНЫЙ"
+        status_color = "#50fa7b"
 
     html_out = f"<h3>Анализ файла с использованием AI:</h3>"
-    html_out += f"<p style='color: {status_color};'>Статус: {status} — найдено {suspicious_count} подозрительных токенов из {total_tokens}. "
-    html_out += f"Размер: {size_label} код ({lines_count} строк, {chars_count} символов). "
+    html_out += f"<p style='color: {status_color}; font-weight: bold;'>Статус: {status}</p>"
+    html_out += f"<p>Найдено {suspicious_count} подозрительных токенов из {total_tokens}. "
     html_out += f"Макс. уверенность: {confidence:.2%}, порог: {threshold:.2f}</p>"
-    html_out += "<pre style='background-color: #1e1e1e; color: #ccc; padding: 10px;'>"
 
     last_idx = 0
     for (start, end), prob in zip(offsets, probs):
