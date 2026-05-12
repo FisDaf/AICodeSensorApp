@@ -1,3 +1,7 @@
+"""
+model.py - Анализаторы кода и функции для детектирования уязвимостей
+"""
+
 import html
 import torch
 import numpy as np
@@ -6,7 +10,7 @@ from model_loader import model, tokenizer, device
 
 
 def predict_long_code(text, model, tokenizer, device, window_size=512, stride=256):
-    """Предсказание по скользящему окну для длинных файлов"""
+    """Предсказание по скользящему окну для длинных файлов (без сглаживания)"""
     model.eval()
     
     inputs = tokenizer(
@@ -45,7 +49,22 @@ def predict_long_code(text, model, tokenizer, device, window_size=512, stride=25
     return tokens, final_probs, all_offsets
 
 
+def remove_isolated_highlights(probs, threshold):
+    """Удаляет одиночные всплески вероятностей"""
+    is_suspicious = probs > threshold
+    
+    for i in range(1, len(is_suspicious) - 1):
+        # Если текущий токен подозрительный, а его соседи нет
+        if is_suspicious[i] and not is_suspicious[i-1] and not is_suspicious[i+1]:
+            is_suspicious[i] = False
+            # Гасим пик, опуская его чуть ниже порога
+            probs[i] = threshold - 0.01 
+            
+    return probs
+
+
 def render_html_result(text, probs, offsets, threshold, status, status_color, suspicious_count, total_tokens, confidence):
+    """Генерирует HTML на основе вероятностей с фильтрацией мусорных токенов"""
     html_out = f"<h3>Анализ файла с использованием AI:</h3>"
     html_out += f"<p style='color: {status_color}; font-weight: bold;'>Статус: {status}</p>"
     html_out += f"<p>Найдено {suspicious_count} подозрительных токенов из {total_tokens}. "
@@ -59,18 +78,26 @@ def render_html_result(text, probs, offsets, threshold, status, status_color, su
             continue
 
         html_out += html.escape(text[last_idx:start])
-        chunk = html.escape(text[start:end])
+        
+        chunk_raw = text[start:end]
+        chunk_escaped = html.escape(chunk_raw)
 
-        if prob > threshold:
-            color = f"rgba(255, 50, 50, {prob:.3f})"
-            html_out += f'<span style="background-color: {color}; border-radius: 2px;">{chunk}</span>'
+        # ЭВРИСТИКА: Игнорируем пробелы, переносы строк и одиночные скобки/пунктуацию
+        is_meaningful = len(chunk_raw.strip()) > 0 and chunk_raw.strip() not in ['{', '}', ';', '\n', '\r']
+
+        # Красим только если вероятность выше порога И токен имеет смысл
+        if prob > threshold and is_meaningful:
+            # Сплошная заливка 0.4 для ровного цвета (выглядит аккуратнее, чем градиент по вероятности)
+            color = "rgba(255, 85, 85, 0.4)" 
+            html_out += f'<span style="background-color: {color}; border-radius: 2px;">{chunk_escaped}</span>'
         else:
-            html_out += chunk
+            html_out += chunk_escaped
             
         last_idx = end
 
     html_out += html.escape(text[last_idx:]) + "</pre>"
     return html_out
+
 
 visualize_long_ai_code = render_html_result 
 
@@ -93,9 +120,20 @@ class CodeSensorModel:
         else:
             threshold = 0.7
             
-        confidence = float(max(probs)) if len(probs) > 0 else 0.0
-        total_tokens = len([1 for start, end in offsets if start != end])
-        suspicious_count = sum(1 for prob in probs if prob > threshold)
+        probs = remove_isolated_highlights(probs, threshold)
+        
+        meaningful_probs = []
+        for (start, end), prob in zip(offsets, probs):
+            if start == end:
+                continue
+                
+            chunk_raw = code_text[start:end]
+            if len(chunk_raw.strip()) > 0 and chunk_raw.strip() not in ['{', '}', ';', '\n', '\r']:
+                meaningful_probs.append(prob)
+        
+        confidence = float(max(meaningful_probs)) if len(meaningful_probs) > 0 else 0.0
+        total_tokens = len(meaningful_probs)
+        suspicious_count = sum(1 for p in meaningful_probs if p > threshold)
         density = suspicious_count / total_tokens if total_tokens > 0 else 0
         
         if density > 0.15:
@@ -121,6 +159,7 @@ class CodeSensorModel:
 
 
 class CodeSensorModel_first:
+    """Классификатор уязвимостей в коде"""
     def __init__(self):
         self.sensor = CodeSensorModel()
 
@@ -130,6 +169,7 @@ class CodeSensorModel_first:
 
 
 class CodeSensorModel_second:
+    """Детальный анализ подозрительного кода"""
     def __init__(self):
         self.sensor = CodeSensorModel()
 
