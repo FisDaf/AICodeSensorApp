@@ -2,8 +2,9 @@ import sys
 import os
 from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog,
                              QListWidgetItem, QSplitter, QVBoxLayout, QWidget, QPushButton)
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt
+import ctypes
 
 from model import CodeSensorModel_first, CodeSensorModel_second, visualize_long_ai_code
 from model_loader import model, tokenizer, device
@@ -15,8 +16,10 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowTitle("AICodeSensor")
+        basedir = os.path.dirname(__file__)
+        icon_path = os.path.join(basedir, "AICodeSensorLogo.png")
+        self.setWindowIcon(QIcon(icon_path))
 
-        # 1. Настройка разделителя
         self.splitter = QSplitter(Qt.Horizontal)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
