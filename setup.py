@@ -68,7 +68,7 @@ def check_model_file():
     print("Проверка файла модели...")
     print("=" * 60)
     
-    model_path = "detector_v2_ep10.pth"
+    model_path = "detector_v4_ep5.pth"
     
     if os.path.exists(model_path):
         size_mb = os.path.getsize(model_path) / (1024 * 1024)

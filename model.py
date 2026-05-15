@@ -49,18 +49,39 @@ def predict_long_code(text, model, tokenizer, device, window_size=512, stride=25
     return tokens, final_probs, all_offsets
 
 
-def remove_isolated_highlights(probs, threshold):
-    """Удаляет одиночные всплески вероятностей"""
+def remove_isolated_highlights(probs, offsets, code_text, threshold, min_group_size=7):
+    """
+    Улучшенный фильтр: удаляет группы, если они слишком короткие 
+    ИЛИ если они состоят в основном из мусорных символов (скобки, знаки).
+    """
     is_suspicious = probs > threshold
+    new_probs = probs.copy()
     
-    for i in range(1, len(is_suspicious) - 1):
-        # Если текущий токен подозрительный, а его соседи нет
-        if is_suspicious[i] and not is_suspicious[i-1] and not is_suspicious[i+1]:
-            is_suspicious[i] = False
-            # Гасим пик, опуская его чуть ниже порога
-            probs[i] = threshold - 0.01 
+    i = 0
+    while i < len(is_suspicious):
+        if is_suspicious[i]:
+            start = i
+            while i < len(is_suspicious) and is_suspicious[i]:
+                i += 1
+            end = i
             
-    return probs
+            group_len = end - start
+            
+            # Извлекаем текст всей подозрительной группы
+            group_text = ""
+            for idx in range(start, end):
+                s, e = offsets[idx]
+                group_text += code_text[s:e]
+            
+            # Очищаем текст от скобок и знаков для проверки "содержательности"
+            content_only = "".join([c for c in group_text if c.isalnum()])
+            
+            if group_len < min_group_size or len(content_only) < 3:
+                new_probs[start:end] = 0
+        else:
+            i += 1
+            
+    return new_probs
 
 
 def render_html_result(text, probs, offsets, threshold, status, status_color, suspicious_count, total_tokens, confidence):
@@ -107,6 +128,7 @@ class CodeSensorModel:
         self.version = "1.0.0-beta"
 
     def analyze(self, code_text: str) -> tuple[int, str]:
+                
         if model is None:
             return 0, "<h3 style='color: gray;'>Модель не загружена</h3>"
         
@@ -115,12 +137,12 @@ class CodeSensorModel:
         lines_count = len(code_text.split('\n'))
         chars_count = len(code_text)
         
-        if lines_count < 25 and chars_count < 1000:
-            threshold = 0.85
+        if lines_count < 25 or chars_count < 200:
+            threshold = 0.85 
         else:
             threshold = 0.7
             
-        probs = remove_isolated_highlights(probs, threshold)
+        probs = remove_isolated_highlights(probs, offsets, code_text, threshold, min_group_size=7)
         
         meaningful_probs = []
         for (start, end), prob in zip(offsets, probs):
@@ -136,7 +158,7 @@ class CodeSensorModel:
         suspicious_count = sum(1 for p in meaningful_probs if p > threshold)
         density = suspicious_count / total_tokens if total_tokens > 0 else 0
         
-        if density > 0.15:
+        if density > 0.2:
             verdict = 2
             status = "ПОДОЗРИТЕЛЬНЫЙ"
             status_color = "#ff5555"
@@ -155,6 +177,8 @@ class CodeSensorModel:
         else:
             html_result = "<h2 style='color: #50fa7b;'>Файл безопасен</h2>"
             
+        print(f'Вердикт: {verdict}, Подозрительных токенов: {suspicious_count}/{total_tokens}, Макс. уверенность: {confidence:.2%}')
+                    
         return verdict, html_result
 
 

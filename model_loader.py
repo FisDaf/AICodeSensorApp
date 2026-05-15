@@ -59,13 +59,13 @@ class CodeBertDetector(nn.Module):
 print("[Model Loader] Загрузка модели детектора...")
 try:
     model = CodeBertDetector(unfreeze_layers=2)
-    state_dict = torch.load('detector_v2_ep10.pth', map_location=device, weights_only=True)
+    state_dict = torch.load('detector_v4_ep5.pth', map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
     print("[Model Loader] ✓ Модель успешно загружена")
 except FileNotFoundError:
-    print("[Model Loader] ✗ ОШИБКА: Файл detector_v2_ep10.pth не найден!")
+    print("[Model Loader] ✗ ОШИБКА: Файл detector_v4_ep5.pth не найден!")
     print("[Model Loader] Убедитесь что файл находится в том же директории что и скрипт")
     model = None
 except Exception as e:
