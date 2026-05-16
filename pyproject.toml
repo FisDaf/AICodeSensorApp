@@ -1,9 +1,0 @@
-[project]
-name = "PySide Widgets Project"
-
-[tool.pyside6-project]
-files = ["form.ui", "mainwindow.py", "model.py"]
-
-[tool.pyside6-project.metadata]
-# Указываем основной файл, который запускает приложение
-entrypoint = "mainwindow.py"

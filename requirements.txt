@@ -1,4 +1,6 @@
 PySide6
 requests
 PyYAML
-PyQt4
+transformers
+torch
+numpy

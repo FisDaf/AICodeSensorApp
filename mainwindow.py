@@ -1,17 +1,14 @@
-import sys
 import os
 from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog,
-                             QListWidgetItem, QSplitter, QVBoxLayout, QWidget, QPushButton)
+                             QListWidgetItem, QSplitter, QVBoxLayout, QWidget)
 from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt
-import ctypes
 
-from model import CodeSensorModel_first, CodeSensorModel_second, visualize_long_ai_code
-from model_loader import model, tokenizer, device
 from ui_form import Ui_MainWindow
+from HtmlVisualizer import HtmlVisualizer
 
 class MainWindow(QMainWindow):
-    def __init__(self, parent=None):
+    def __init__(self, sensorModel, parent=None):
         super().__init__(parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -20,7 +17,7 @@ class MainWindow(QMainWindow):
         icon_path = os.path.join(basedir, "AICodeSensorLogo.png")
         self.setWindowIcon(QIcon(icon_path))
 
-        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -35,7 +32,7 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(self.ui.centralwidget)
         main_layout.addWidget(self.splitter)
 
-        # 2. Обновленные стили (добавили отступы для списка)
+
         self.setStyleSheet("""
             QMainWindow { background-color: #2b2b2b; }
             QSplitter::handle { background-color: #323232; width: 4px; }
@@ -46,12 +43,12 @@ class MainWindow(QMainWindow):
             QPushButton:hover { background-color: #4572a7; }
         """)
 
-        self.sensor_first = CodeSensorModel_first()
-        self.sensor_second = CodeSensorModel_second()
+        self.sensor = sensorModel
         self.results_storage = {}
 
         self.ui.btn_load_files.clicked.connect(self.load_multiple_files)
         self.ui.file_list.itemClicked.connect(self.display_selected_file)
+
 
     def load_multiple_files(self):
         file_paths, _ = QFileDialog.getOpenFileNames(self, "Выбор файлов")
@@ -64,37 +61,30 @@ class MainWindow(QMainWindow):
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
 
-                # verdict теперь возвращает 0, 1 или 2
-                verdict = self.sensor_first.get_verdict(content)
+                result = self.sensor.analyze(content)
+                html_result = HtmlVisualizer.render(content, result)
                 
                 item = QListWidgetItem()
-                # Сохраняем чистое имя файла в скрытые данные элемента, чтобы поиск в словаре не ломался
-                item.setData(Qt.UserRole, file_name) 
+                item.setData(Qt.ItemDataRole.UserRole, file_name) 
 
-                if verdict == 2:
+                if result.verdict == 2:
                     item.setText(f"⚠ {file_name}")
                     item.setForeground(QColor("#ff5555"))
-                elif verdict == 1:
+                elif result.verdict == 1:
                     item.setText(f"? {file_name}")
                     item.setForeground(QColor("#ffb86c"))
                 else:
                     item.setText(f"✓ {file_name}")
                     item.setForeground(QColor("#50fa7b"))
                 
-                # Сохраняем результат анализа
-                self.results_storage[file_name] = self.sensor_second.process_code(content)
+                self.results_storage[file_name] = html_result
                 self.ui.file_list.addItem(item)
 
             except Exception as e:
                 print(f"Ошибка с файлом {file_name}: {e}")
 
+
     def display_selected_file(self, item):
-        file_name = item.data(Qt.UserRole)
+        file_name = item.data(Qt.ItemDataRole.UserRole)
         html_to_show = self.results_storage.get(file_name, "Ошибка: данные не найдены")
         self.ui.result_view.setHtml(html_to_show)
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    widget = MainWindow()
-    widget.show()
-    sys.exit(app.exec())
