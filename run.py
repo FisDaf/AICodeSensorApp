@@ -5,6 +5,11 @@ import sys
 from CodeBertDetector import CodeBertDetector
 from CodeSensor import CodeSensor
 
+WEIGHTS_PATHS = {
+    "py": 'weights/py.pth',
+    "cpp": 'weights/cpp.pth'
+}
+
 def load_tokenizer():
     print(f"[Model Loader] Используется устройство: {device}")
     print("[Model Loader] Загрузка CodeBERT токенайзера...")
@@ -63,17 +68,20 @@ def check_device():
     return True
 
 if __name__ == "__main__":
-    model_path = "detector_v4_ep5.pth"
+    for lang, model_path in WEIGHTS_PATHS.items():
+        print(f"\n[Model Loader] Проверка модели для языка: {lang}")
+        check_model_file(model_path)
 
-    check_model_file(model_path)
     check_device()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = load_tokenizer()
-    model = load_model(model_path)
-    sensorModel = CodeSensor(tokenizer, model, device)
+
+    sensorModels = {}
+    for lang, model_path in WEIGHTS_PATHS.items():
+        sensorModels[lang] = CodeSensor(tokenizer, load_model(model_path), device)
 
     app = QApplication(sys.argv)
-    widget = MainWindow(sensorModel)
+    widget = MainWindow(sensorModels)
     widget.show()
     sys.exit(app.exec())

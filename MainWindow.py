@@ -8,7 +8,7 @@ from ui_form import Ui_MainWindow
 from HtmlVisualizer import HtmlVisualizer
 
 class MainWindow(QMainWindow):
-    def __init__(self, sensorModel, parent=None):
+    def __init__(self, sensorModels, parent=None):
         super().__init__(parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
             QPushButton:hover { background-color: #4572a7; }
         """)
 
-        self.sensor = sensorModel
+        self.sensors = sensorModels
         self.results_storage = {}
 
         self.ui.btn_load_files.clicked.connect(self.load_multiple_files)
@@ -61,7 +61,8 @@ class MainWindow(QMainWindow):
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
 
-                result = self.sensor.analyze(content)
+                lang = path.split('.')[-1].lower()
+                result = self.sensors[lang].analyze(content)
                 html_result = HtmlVisualizer.render(content, result)
                 
                 item = QListWidgetItem()
