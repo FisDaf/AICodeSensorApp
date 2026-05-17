@@ -71,5 +71,4 @@ dist/
 venv/
 .venv/
 env/
-ui_form.py
 .env

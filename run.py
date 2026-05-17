@@ -7,7 +7,7 @@ from CodeSensor import CodeSensor
 
 WEIGHTS_PATHS = {
     "py": 'weights/py.pth',
-    "cpp": 'weights/cpp.pth'
+    "cpp": 'weights/cpp_v2.pth'
 }
 
 def load_tokenizer():
