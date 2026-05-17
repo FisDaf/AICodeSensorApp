@@ -1,6 +1,5 @@
 import os
-from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog,
-                             QListWidgetItem, QSplitter, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QListWidgetItem, QSplitter, QVBoxLayout, QWidget)
 from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt
 
