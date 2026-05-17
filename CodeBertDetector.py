@@ -19,7 +19,7 @@ class CodeBertDetector(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(768, 256),
             nn.GELU(),
-            nn.Dropout(0.5),
+            nn.Dropout(0.3),
             nn.Linear(256, 128),
             nn.GELU(),
             nn.Dropout(0.3),
