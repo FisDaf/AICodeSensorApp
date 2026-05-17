@@ -6,7 +6,7 @@ from CodeBertDetector import CodeBertDetector
 from CodeSensor import CodeSensor
 
 WEIGHTS_PATHS = {
-    "py": 'weights/py.pth',
+    "py": 'weights/py_v2.pth',
     "cpp": 'weights/cpp_v2.pth'
 }
 
@@ -22,7 +22,7 @@ def load_tokenizer():
 def load_model(model_path: str):
     print("[Model Loader] Загрузка модели детектора...")
     try:
-        model = CodeBertDetector(unfreeze_layers=2)
+        model = CodeBertDetector(unfreeze_layers=6)
         state_dict = torch.load(model_path, map_location=device, weights_only=True)
         model.load_state_dict(state_dict)
         model.to(device)
