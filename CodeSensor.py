@@ -81,9 +81,9 @@ class CodeSensor:
         chars_count = len(code_text)
         
         if lines_count < 25 or chars_count < 200:
-            threshold = 0.85 
+            threshold = 0.8
         else:
-            threshold = 0.7
+            threshold = 0.75
             
         array = autoMeanFilter(array)
         
@@ -101,9 +101,9 @@ class CodeSensor:
         suspicious_count = sum(1 for p in meaningful_array if p > threshold)
         density = suspicious_count / total_tokens if total_tokens > 0 else 0
         
-        if density > 0.2:
+        if density > 0.3:
             verdict = 2
-        elif density > 0.05:
+        elif density > 0.15:
             verdict = 1
         else:
             verdict = 0
