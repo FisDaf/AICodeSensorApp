@@ -14,7 +14,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.setWindowTitle("AICodeSensor")
         basedir = os.path.dirname(__file__)
-        icon_path = os.path.join(basedir, "AICodeSensorLogo.png")
+        icon_path = os.path.join(basedir, "static/AICodeSensorLogo.png")
         self.setWindowIcon(QIcon(icon_path))
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)

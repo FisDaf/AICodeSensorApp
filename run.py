@@ -7,11 +7,10 @@ from CodeSensor import CodeSensor
 
 WEIGHTS_PATHS = {
     "py": 'weights/py_v2.pth',
-    "cpp": 'weights/cpp_v2.pth'
+    "cpp": 'weights/cpp_old.pth'
 }
 
 def load_tokenizer():
-    print(f"[Model Loader] Используется устройство: {device}")
     print("[Model Loader] Загрузка CodeBERT токенайзера...")
 
     tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base", use_fast=True)
@@ -19,7 +18,7 @@ def load_tokenizer():
 
     return tokenizer
 
-def load_model(model_path: str):
+def load_model(model_path: str, device):
     print("[Model Loader] Загрузка модели детектора...")
     try:
         model = CodeBertDetector(unfreeze_layers=6)
@@ -79,7 +78,7 @@ if __name__ == "__main__":
 
     sensorModels = {}
     for lang, model_path in WEIGHTS_PATHS.items():
-        sensorModels[lang] = CodeSensor(tokenizer, load_model(model_path), device)
+        sensorModels[lang] = CodeSensor(tokenizer, load_model(model_path, device), device)
 
     app = QApplication(sys.argv)
     widget = MainWindow(sensorModels)
